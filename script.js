@@ -264,7 +264,7 @@ function initDices() {
 
     for(let i = 0; i < diceCount; i++) {
         const dice = createDice();
-        dice.style.transform = 'rotateX(90deg) rotateY(0deg)'; // 初始显示6点
+        dice.style.transform = 'rotateX(90deg) rotateY(0deg)'; // 6
         diceContainer.appendChild(dice);
     }
 }
