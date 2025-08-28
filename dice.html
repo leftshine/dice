@@ -16,7 +16,7 @@
     11.添加全屏功能
 	12.骰子大小控制
 	13.音效缓存
-	14.UI优化
+	14.UI与交互优化
     -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -31,7 +31,16 @@
             max-height: 60vh;  /* 修改为100vh确保撑满屏幕 */
             margin: 0;  /* 添加margin重置 */
         }
-        /* 新增样式 */
+
+    	/* 去掉 input 输入框里的小三角 */
+		input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+        }
+        input[type="number"]
+        {
+            -moz-appearance: textfield;    
+        }
+
         .control-row {
             display: flex;
             flex-wrap: wrap;
@@ -57,13 +66,6 @@
             padding: 2px;
             font-size: 24px;
         }
-        .switch-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-            gap: 15px;
-        }
         /* 修改switch样式 */
         .switch {
             position: relative;
@@ -77,7 +79,6 @@
             flex-wrap: wrap;
             justify-content: center;
             align-items: center;
-            margin-top: 15px;
             gap: 10px;
         }
         .switch-wrapper {
@@ -131,18 +132,22 @@
             
         }
         .dice {
-            width: 200px;
-            height: 200px;
+            /* 使用CSS变量控制骰子大小 */
+            width: var(--dice-size, 200px);
+            height: var(--dice-size, 200px);
             position: relative;
             transform-style: preserve-3d;
             transition: transform 1s ease;
-            font-size: 100px;
+            font-size: calc(var(--dice-size, 200px) * 0.5);
+            margin: calc(var(--dice-size, 200px) * 0.1);
         }
         .face {
             position: absolute;
             width: 100%;
             height: 100%;
-            border: 4px solid #333;
+            border-width: min(max(2px, calc(var(--dice-size, 200px) * 0.02)), 4px);
+            border-style: solid;
+            border-color: #333;
             border-radius: 10%;
             display: flex;
             justify-content: center;
@@ -150,15 +155,15 @@
             font-weight: bold;
             background-color: white;
         }
-        .face-1 { transform: translateZ(100px); }
-        .face-2 { transform: rotateY(180deg) translateZ(100px); }
-        .face-3 { transform: rotateY(90deg) translateZ(100px); }
-        .face-4 { transform: rotateY(-90deg) translateZ(100px); }
-        .face-5 { transform: rotateX(90deg) translateZ(100px); }
-        .face-6 { transform: rotateX(-90deg) translateZ(100px); }
+        .face-1 { transform: translateZ(calc(var(--dice-size, 200px) / 2)); }
+        .face-2 { transform: rotateY(180deg) translateZ(calc(var(--dice-size, 200px) / 2)); }
+        .face-3 { transform: rotateY(90deg) translateZ(calc(var(--dice-size, 200px) / 2)); }
+        .face-4 { transform: rotateY(-90deg) translateZ(calc(var(--dice-size, 200px) / 2)); }
+        .face-5 { transform: rotateX(90deg) translateZ(calc(var(--dice-size, 200px) / 2)); }
+        .face-6 { transform: rotateX(-90deg) translateZ(calc(var(--dice-size, 200px) / 2)); }
         .dot {
-            width: 30px;
-            height: 30px;
+            width: 20%;
+            height: 20%;
             background-color: black;
             border-radius: 50%;
             position: absolute;
@@ -215,7 +220,7 @@
         button:active {
             transform: scale(0.95);
         }
-        /* 新增历史记录样式 */
+        /* 历史记录样式 */
         #history {
             position: fixed;
             bottom: 0;
@@ -243,7 +248,7 @@
             height: 60vh;
             transform: translateY(0);
         }
-        /* 修改历史记录标题样式 */
+        /* 历史记录标题样式 */
         #history h2 {
             display: grid;
             grid-template-columns: 1fr auto 1fr;
@@ -295,8 +300,40 @@
             border-bottom: 1px solid rgba(0,0,0,0.05);
             animation: fadeIn 0.3s;
         }
+        /* 图标样式 */
+        .history-icon {
+            display: none;
+            justify-self: center;
+            width: 36px;  /* 增大尺寸 */
+            height: 36px;
+            transition: transform 0.3s ease, stroke 0.3s ease;
+            margin-left: 8px;
+            stroke: #4CAF50;  /* 使用主题色 */
+            stroke-width: 3.5;  /* 进一步加粗线条 */
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2)); /* 添加阴影效果 */
+        }
+        .history-icon:hover {
+            stroke: #45a049;  /* 悬停变色 */
+            transform: scale(1.2);  /* 增大悬停放大效果 */
+            filter: drop-shadow(0 3px 5px rgba(0,0,0,0.3)); /* 悬停时阴影加深 */
+        }
+        .history-icon.up {
+            transform: rotate(180deg);
+        }
+        /* 新增提示动画 */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .history-icon.prompt {
+            animation: bounce 1.5s infinite;
+        }
+        /* 在现有CSS中添加过渡禁用样式 */
+        #history.no-transition {
+            transition: none;
+        }
 
-        /* 新增汉堡菜单样式 */
+        /* 汉堡菜单样式 */
         .menu-btn {
             position: fixed;
             top: 10px;
@@ -340,40 +377,8 @@
         .menu-btn.active span:nth-child(3) {
             transform: rotate(-45deg) translate(5px, -5px);
         }
-        /* 新增图标样式 */
-        .history-icon {
-            display: none;
-            justify-self: center;
-            width: 36px;  /* 增大尺寸 */
-            height: 36px;
-            transition: transform 0.3s ease, stroke 0.3s ease;
-            margin-left: 8px;
-            stroke: #4CAF50;  /* 使用主题色 */
-            stroke-width: 3.5;  /* 进一步加粗线条 */
-            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2)); /* 添加阴影效果 */
-        }
-        .history-icon:hover {
-            stroke: #45a049;  /* 悬停变色 */
-            transform: scale(1.2);  /* 增大悬停放大效果 */
-            filter: drop-shadow(0 3px 5px rgba(0,0,0,0.3)); /* 悬停时阴影加深 */
-        }
-        .history-icon.up {
-            transform: rotate(180deg);
-        }
-        /* 新增提示动画 */
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        .history-icon.prompt {
-            animation: bounce 1.5s infinite;
-        }
-        /* 在现有CSS中添加过渡禁用样式 */
-        #history.no-transition {
-            transition: none;
-        }
         
-        /* 新增全屏按钮样式 */
+        /* 全屏按钮样式 */
         .fullscreen-btn {
             position: fixed;
             top: 10px;
@@ -404,12 +409,11 @@
             transition: all 0.3s ease;
         }
         
-        /* 新增滑块容器样式 */
+        /* 滑块容器样式 */
         .dice-size-wrapper {
             position: relative;
             display: flex;
             align-items: center;
-            gap: 10px;
         }
         
         #diceSizeFloating {
@@ -421,7 +425,7 @@
             opacity: 1 !important;
         }
         
-        /* 新增滑块数值显示样式 */
+        /* 滑块数值显示样式 */
         .slider-value {
             position: fixed;
             top: -25px;
@@ -448,7 +452,7 @@
             border-top-color: #4CAF50;
         }
         
-        /* 新增滑块样式，使其颜色与按钮一致 */
+        /* 滑块样式，使其颜色与按钮一致 */
         input[type="range"] {
             -webkit-appearance: none;
             width: 150px;
@@ -479,32 +483,36 @@
             cursor: pointer;
             border: none;
         }
-        
+
+        #diceSizeValue {
+            cursor: pointer; 
+            border: 1px dashed #ccc; 
+            padding: 2px;
+            margin: 0px 2px 0px 5px;
+        }   
     </style>
 
 <body onclick="handleBodyClick(event)">
     <h1 id="mainTitle">3D骰子模拟器</h1>
     
-    <!-- 修改全屏按钮 -->
-    <div class="fullscreen-btn" onclick="toggleFullScreen()">
+    <div class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullScreen()">
         <svg id="fullscreenIcon" viewBox="0 0 1024 1024" fill="#4CAF50" >
             <path id="enterFullscreen" d="M358.4 768H426.666667v85.333333H213.333333v-213.333333h85.333334v68.266667l128-128 59.733333 59.733333-128 128z m345.6 0l-128-128 59.733333-59.733333 132.266667 132.266666V640h85.333333v213.333333h-213.333333v-85.333333h64zM358.4 298.666667l128 128-59.733333 59.733333-128-128V426.666667H213.333333V213.333333h213.333334v85.333334H358.4z m345.6 0H640V213.333333h213.333333v213.333334h-85.333333V354.133333l-132.266667 132.266667-59.733333-59.733333 128-128z"/>
             <path id="exitFullscreen" d="M298.666667 631.466667H226.133333v-81.066667h217.6v204.8h-85.333333v-68.266667l-128 128L170.666667 759.466667l128-128z m422.4 0l128 128-59.733334 59.733333-128-128v68.266667h-85.333333V554.666667h217.6v81.066666h-72.533333zM298.666667 341.333333L187.733333 230.4 243.2 170.666667l115.2 115.2V217.6h85.333333v204.8H226.133333V341.333333H298.666667z m430.933333 0h64v81.066667h-217.6V217.6h85.333333v72.533333L780.8 170.666667l59.733333 59.733333L729.6 341.333333z" style="display:none;"/>
         </svg>
     </div>
     
-    <!-- 添加汉堡菜单按钮 -->
+    <!-- 汉堡菜单按钮 -->
     <div class="menu-btn" id="mainMenu" onclick="toggleMenu()">
         <span></span>
         <span></span>
         <span></span>
     </div>
 
-    <!-- 添加菜单容器 -->
+    <!-- 菜单容器 -->
     <div class="menu-container" id="menuContainer">
         <h1>设置</h1>
         <div class="controls">
-            <!-- 骰子数量单独一行 -->
             <div class="control-row">
                 <div class="input-group">
                     <label for="diceCount">骰子数量:</label>
@@ -519,39 +527,35 @@
                     <button class="number-btn plus" onclick="adjustNumber('repeatCount', 1)">+</button>
                 </div>
             </div>
-            
-            <!-- 骰子大小控制 -->
             <div class="control-row">
                 <div class="input-group">
                     <label for="diceSize">骰子大小:</label>
                     <div class="dice-size-wrapper">
                         <input type="range" id="diceSize" min="50" max="300" value="200" style="width: 150px;">
-                        <span id="diceSizeValue">200%</span>
+                        <span id="diceSizeValue" contenteditable="true">200</span>%
                     </div>
                 </div>
             </div>
-            
-            <!-- switch配置单独一行 -->
             <div class="control-row">
                 <div class="switch-container">
                     <div class="switch-wrapper">
-                        <span class="switch-label">音效</span>
+                         <span class="switch-label">显示数字</span>
+                        <label class="switch">
+                            <input type="checkbox" id="showNumberSwitch">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-wrapper">
+                        <span class="switch-label">投掷音效</span>
                         <label class="switch">
                             <input type="checkbox" id="soundSwitch" checked>
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="switch-wrapper">
-                        <span class="switch-label">震动</span>
+                        <span class="switch-label">震动反馈</span>
                         <label class="switch">
                             <input type="checkbox" id="vibrationSwitch" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="switch-wrapper">
-                         <span class="switch-label">显示数字</span>
-                        <label class="switch">
-                            <input type="checkbox" id="showNumberSwitch">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -562,7 +566,6 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <!-- 新增历史记录开关 -->
                     <div class="switch-wrapper">
                          <span class="switch-label">记录历史</span>
                         <label class="switch">
@@ -570,7 +573,7 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <!-- 在菜单容器中的switch-wrapper部分添加debug开关 -->
+                    <!-- debug开关 -->
                     <div class="switch-wrapper" style="display:none;">
                         <span class="switch-label">调试模式</span>
                         <label class="switch">
@@ -585,17 +588,15 @@
     
     <!-- 骰子大小滑块浮动版本 -->
     <input type="range" id="diceSizeFloating" min="50" max="300" value="200" style="display: none;">
-    <!-- 新增浮动滑块数值显示 -->
+    <!--浮动滑块数值显示 -->
     <div id="floatingSliderValue" class="slider-value">200%</div>
-    
-    <!-- 将掷骰子按钮移出菜单 -->
+
     <div class="control-row" style="margin: 20px 0;">
         <button  id="rollButton" onclick="rollDice()">掷骰子</button>
     </div>
     
     <div class="dice-container" id="diceContainer"></div>
     
-    <!-- 修改历史记录区域 -->
     <div class="stats" id="history">
         <h2 id="historyHeader" >
             <span>投掷结果：<span id="total">0</span></span>
@@ -652,21 +653,16 @@
                 if (document.getElementById('debugSwitch') && settings.debugSwitch !== undefined) {
                     document.getElementById('debugSwitch').checked = settings.debugSwitch;
                 }
-                // 加载骰子大小设置
+
                 const diceSize = settings.diceSize || 200;
                 document.getElementById('diceSize').value = diceSize;
-                document.getElementById('diceSizeValue').textContent = diceSize + '%';
+                document.getElementById('diceSizeValue').textContent = diceSize;
                 updateSlider(diceSize);
                 updateDiceSize(diceSize);
                 debugLog('Settings loaded:', settings);
             }
         }
-        
-        // 初始化变量
-        let lastAcceleration = {x: null, y: null, z: null};
-        const shakeThreshold = 15;
- 
-        // 新增历史记录数组
+
         let historyRecords = [];
         
         // 音效
@@ -724,21 +720,14 @@
             const dice = document.createElement('div');
             dice.className = 'dice';
             
-            // 获取当前设置的骰子大小
             const diceSize = document.getElementById('diceSize').value || 200;
-            dice.style.width = diceSize + 'px';
-            dice.style.height = diceSize + 'px';
-            dice.style.margin = diceSize * 0.1 + 'px';
-            dice.style.fontSize = diceSize * 0.5 + 'px';
+            dice.style.setProperty('--dice-size', diceSize + 'px');
             
             const showNumbers = document.getElementById('showNumberSwitch').checked;
             
             for (let i = 1; i <= 6; i++) {
                 const face = document.createElement('div');
                 face.className = `face face-${i}`;
-
-                const borderWidth = Math.min(Math.max(2, diceSize * 0.02), 4);
-                face.style.borderWidth = borderWidth + 'px';
                 
                 if (showNumbers) {
                     face.textContent = i;
@@ -807,44 +796,10 @@
                 dice.appendChild(face);
             }
             
-            // 设置骰子面的translateZ值
-            const translateZ = diceSize / 2;
-            const faces = dice.querySelectorAll('.face');
-            faces.forEach((face, index) => {
-                switch(index + 1) {
-                    case 1:
-                        face.style.transform = `translateZ(${translateZ}px)`;
-                        break;
-                    case 2:
-                        face.style.transform = `rotateY(180deg) translateZ(${translateZ}px)`;
-                        break;
-                    case 3:
-                        face.style.transform = `rotateY(90deg) translateZ(${translateZ}px)`;
-                        break;
-                    case 4:
-                        face.style.transform = `rotateY(-90deg) translateZ(${translateZ}px)`;
-                        break;
-                    case 5:
-                        face.style.transform = `rotateX(90deg) translateZ(${translateZ}px)`;
-                        break;
-                    case 6:
-                        face.style.transform = `rotateX(-90deg) translateZ(${translateZ}px)`;
-                        break;
-                }
-            });
-            
-            // 更新点的大小
-            const dotSize = Math.max(10, diceSize * 0.20);
-            const dots = dice.querySelectorAll('.dot');
-            dots.forEach(dot => {
-                dot.style.width = dotSize + 'px';
-                dot.style.height = dotSize + 'px';
-            });
-            
             return dice;
         }
         
-        // 修改rollDice函数，添加连续投掷停止功能
+        // 连续投掷停止功能
         let currentRollTimeout = null;
         let isContinuousRolling = false;
 
@@ -892,7 +847,14 @@
             function mayVibrate(){                                
                 const vibrationEnabled = document.getElementById('vibrationSwitch').checked;
                 if (vibrationEnabled && 'vibrate' in navigator) {
-                    navigator.vibrate([100, 50, 100]);
+                    const pattern = [];
+                    let delay = 30;
+                    for (let i = 0; i < 5; i++) { // 5 段震动
+                        pattern.push(50 + Math.random() * 30); // 震动时长
+                        pattern.push(delay);                   // 停顿
+                        delay += Math.random() * 40;           // 停顿逐渐变长
+                    }
+                    navigator.vibrate(pattern);
                 }
             }
 
@@ -979,7 +941,7 @@
             performRoll();
         }
         
-        // 新增:更新历史记录显示
+        // 更新历史记录显示
         function updateHistoryDisplay() {
             const historyList = document.getElementById('historyList');
             const historyContainer = document.getElementById('history');
@@ -999,7 +961,7 @@
                 return;
             }
             
-            // 修改:只显示历史记录区域但不自动展开
+            // 只显示历史记录区域但不自动展开
             const history = document.getElementById('history');
             if(historyRecords.length > 1) {
                 history.classList.add('visible-more');
@@ -1009,7 +971,6 @@
                 history.classList.remove('visible-more');
             }
 
-            
             // 显示图标并添加提示动画
             historyIcon.style.display = 'block';
             historyIcon.classList.add('prompt');
@@ -1036,7 +997,7 @@
             });
         }
 
-        // 新增:切换历史记录抽屉函数
+        // 切换历史记录抽屉函数
         function toggleHistory(e) {
             if (e && e.type === 'click') {
                 // 仅当点击事件且非拖拽时触发
@@ -1055,7 +1016,7 @@
             }
         }
 
-        // 新增: 初始化拖拽事件
+        // 初始化历史记录拖拽事件
         let isDragging = false;
 
         function initDragEvents() {
@@ -1161,7 +1122,7 @@
             }
         }
 
-        // 新增: 根据高度更新状态
+        // 根据高度更新状态
         function updateHeightConstraints() {
             const historyContainer = document.getElementById('history');
             const historyIcon = document.querySelector('.history-icon');
@@ -1175,7 +1136,6 @@
             }
         }
 
-        // 修改清空历史记录函数
         function clearHistory(e) {
             e.stopPropagation();
             if(confirm("确定要清空所有历史记录吗？")) {
@@ -1194,7 +1154,7 @@
             }
         }
 
-        // 新增:重绘骰子时保留原骰子值
+        // 重绘骰子时保留原骰子值
         function redrawDice() {
             const diceContainer = document.getElementById('diceContainer');
             const showNumbers = document.getElementById('showNumberSwitch').checked;
@@ -1251,7 +1211,7 @@
             });
         }
 
-        // 新增:从旋转角度获取骰子值
+        // 从旋转角度获取骰子值
         function getDiceValueFromRotation(transform) {
             if(!transform) return null;
             
@@ -1273,7 +1233,6 @@
             return null;
         }
 
-        // 新增: 数字调整函数
         function adjustNumber(id, delta) {
             const input = document.getElementById(id);
             if (!input) return;
@@ -1301,7 +1260,6 @@
 			saveSettings();
         }
 
-        // 修改菜单切换函数
         function toggleMenu() {
             const menu = document.getElementById('menuContainer');
             const btn = document.querySelector('.menu-btn');
@@ -1310,9 +1268,9 @@
             btn.classList.toggle('active');
         }
 
-        // 新增:处理body点击事件
+        // 处理body点击事件
         function handleBodyClick(e) {
-            debugLog("body clicked");
+            //debugLog("body clicked");
             // 如果正在拖拽，则直接返回
             if (isDragging) {
                 isDragging = false; // 重置拖拽状态
@@ -1358,15 +1316,19 @@
             // 如果既没有菜单也没有历史记录展开，则掷骰子
             rollDice();
         }
-
-        // 修改晃动检测，添加开关判断
-        window.addEventListener('devicemotion', function(event) {
+        
+        let lastAcceleration = { x: null, y: null, z: null };
+        let lastShakeTime = 0;
+        function handleDeviceMotion(event) {
+            const shakeThreshold = 12; // 阈值
+            const shakeCooldown = 1000; // 1 秒冷却
             const shakeEnabled = document.getElementById('shakeSwitch').checked;
             if (!shakeEnabled) return;
-            
-            const acceleration = event.accelerationIncludingGravity;
-            
-            // 如果是第一次获取数据，直接返回
+
+            const acceleration = event.acceleration || event.accelerationIncludingGravity;
+            if (!acceleration) return;
+
+            // 第一次获取数据
             if (lastAcceleration.x === null) {
                 lastAcceleration = {
                     x: acceleration.x,
@@ -1375,36 +1337,111 @@
                 };
                 return;
             }
-            
+
             // 计算加速度变化
             const deltaX = Math.abs(acceleration.x - lastAcceleration.x);
             const deltaY = Math.abs(acceleration.y - lastAcceleration.y);
             const deltaZ = Math.abs(acceleration.z - lastAcceleration.z);
             
-            // 更新上一次的加速度值
+            if (deltaX > 5 || deltaY > 5 || deltaZ > 5) {
+                debugLog(`加速度变化: x=${deltaX}, y=${deltaY}, z=${deltaZ}`); 
+            }
+
+            // 更新上一次的加速度
             lastAcceleration = {
                 x: acceleration.x,
                 y: acceleration.y,
                 z: acceleration.z
             };
-            
-            // 如果变化超过阈值，触发掷骰子
-            if ((deltaX > shakeThreshold && deltaY > shakeThreshold) || 
+            // 摇动检测 + 冷却时间
+            if (
+                ((deltaX > shakeThreshold && deltaY > shakeThreshold) || 
                 (deltaX > shakeThreshold && deltaZ > shakeThreshold) || 
-                (deltaY > shakeThreshold && deltaZ > shakeThreshold)) {
+                (deltaY > shakeThreshold && deltaZ > shakeThreshold)) &&
+                Date.now() - lastShakeTime > shakeCooldown) {
                 rollDice();
+                lastShakeTime = Date.now();
             }
-        });
+        }
+        
+        // 检查设备是否支持 DeviceMotionEvent
+        function isDeviceMotionSupported() {
+            return 'DeviceMotionEvent' in window;
+        }
+        
+        // 请求设备方向权限 (iOS 13+)
+        function requestDeviceMotionPermission() {
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                return DeviceMotionEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            debugLog('Device motion permission granted');
+                            return true;
+                        } else {
+                            debugLog('Device motion permission denied');
+                            return false;
+                        }
+                    })
+                    .catch(error => {
+                        debugLog('Device motion permission error:', error);
+                        return false;
+                    });
+            } else {
+                // 非 iOS 13+ 设备不需要特殊权限
+                return Promise.resolve(true);
+            }
+        }
+        
+        // 初始化晃动功能
+        function initShakeFeature() {
+            const shakeSwitch = document.getElementById('shakeSwitch');
+            const shakeSwitchWrapper = shakeSwitch.closest('.switch-wrapper');
+            
+            // 检查设备是否支持
+            if (!isDeviceMotionSupported()) {
+                debugLog('Device motion not supported');
+                shakeSwitchWrapper.style.display = 'none';
+                shakeSwitch.checked = false;
+                return;
+            }
+            
+            // 监听晃动开关变化
+            shakeSwitch.addEventListener('change', async function() {
+                if (this.checked) {
+                    // 尝试获取权限
+                    const permissionGranted = await requestDeviceMotionPermission();
+                    if (!permissionGranted) {
+                        // 权限被拒绝，关闭开关
+                        this.checked = false;
+                        alert('需要设备运动权限才能使用晃动功能');
+                    } else {
+                        window.addEventListener('devicemotion', handleDeviceMotion);  
+                        saveSettings();
+                    }
+                } else {
+                    window.removeEventListener('devicemotion', handleDeviceMotion);
+                    saveSettings();
+                }
+            });
+        }
         
         // 全屏功能实现
         function toggleFullScreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log(`无法进入全屏模式: ${err.message}`);
-                });
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                 } else if (document.documentElement.mozRequestFullScreen) {
+                    document.documentElement.mozRequestFullScreen();
+                }
             } else {
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
                 }
             }
         }
@@ -1418,7 +1455,7 @@
             const rollButton = document.getElementById('rollButton');
             const mainMenu = document.getElementById('mainMenu');
             debugLog('handleFullScreenChange: '+document.fullscreenElement);
-            if (document.fullscreenElement) {
+            if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement) {
                 // 已进入全屏模式
                 enterIcon.style.display = 'none';
                 exitIcon.style.display = 'block';
@@ -1453,13 +1490,9 @@
             }
         });
 
-        // 初始化一个骰子
         window.onload = function() {
             debugLog("页面加载完成");
-            // 加载保存的设置
             loadSettings();
-            
-            // 预加载音效
             preloadSound();
             
             // 创建骰子
@@ -1470,27 +1503,46 @@
 
             for(let i = 0; i < diceCount; i++) {
                 const dice = createDice();
-                dice.style.transform = 'rotateX(90deg) rotateY(0deg)';
+                dice.style.transform = 'rotateX(90deg) rotateY(0deg)'; // 初始显示6点
                 diceContainer.appendChild(dice);
             }
+
             rollDice();
+
             // 添加骰子大小控制事件监听器
             document.getElementById('diceSize').addEventListener('input', function(e) {
                 const size = e.target.value;
-                document.getElementById('diceSizeValue').textContent = size + '%';
+                document.getElementById('diceSizeValue').textContent = size;
                 updateDiceSize(size);
-                saveSettings();
             });
             
-            // 修改事件监听器，从controls移动到menuContainer
+            // 添加骰子大小数值直接输入功能
+            document.getElementById('diceSizeValue').addEventListener('blur', function(e) {
+                let value = parseInt(e.target.textContent) || 200;
+                value = Math.max(50, Math.min(300, value));
+                e.target.textContent = value;
+                document.getElementById('diceSize').value = value;
+                updateSlider(value);
+                updateDiceSize(value);
+                saveSettings();
+            });
+            // 添加回车键支持
+            document.getElementById('diceSizeValue').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.target.blur();
+                }
+            });
+            
+            // 监听设置改变
             document.getElementById('menuContainer').addEventListener('change', function(e) {
+                debugLog("setting change: " + e.target.id);
                 if(e.target.id === 'diceCount' || e.target.id === 'showNumberSwitch') {
                     redrawDice();
                 }
                 if(e.target.id === 'repeatCount') {
                     updateRollButtonText(isContinuousRolling);
                 }
-                // 保存设置
                 saveSettings();
             });
             
@@ -1499,56 +1551,16 @@
             
             // 初始化骰子大小滑块拖动透明度效果
             handleDiceSizeDrag();
+            initShakeFeature();
         };
-        
-        // 添加更新骰子大小的函数
+
         function updateDiceSize(size) {
             const diceElements = document.querySelectorAll('.dice');
-            const dotElements = document.querySelectorAll('.dot');
-            
-            // 更新骰子大小
             diceElements.forEach(dice => {
-                dice.style.width = size + 'px';
-                dice.style.height = size + 'px';
-                dice.style.margin = size * 0.1 + 'px';
-                dice.style.fontSize = size * 0.5 + 'px';
-                const facesElements = dice.querySelectorAll('.face');
-                facesElements.forEach(face => {
-                    const borderWidth = Math.min(Math.max(2, size * 0.02), 4);
-                    face.style.borderWidth = borderWidth + 'px';
-                });
-            });
-            
-            // 更新点的大小
-            const dotSize = Math.max(10, size * 0.20); // 最小10px
-            dotElements.forEach(dot => {
-                dot.style.width = dotSize + 'px';
-                dot.style.height = dotSize + 'px';
-            });
-            
-            // 更新骰子面的变换（translateZ）
-            const translateZ = size / 2;
-            document.querySelectorAll('.face-1').forEach(face => {
-                face.style.transform = `translateZ(${translateZ}px)`;
-            });
-            document.querySelectorAll('.face-2').forEach(face => {
-                face.style.transform = `rotateY(180deg) translateZ(${translateZ}px)`;
-            });
-            document.querySelectorAll('.face-3').forEach(face => {
-                face.style.transform = `rotateY(90deg) translateZ(${translateZ}px)`;
-            });
-            document.querySelectorAll('.face-4').forEach(face => {
-                face.style.transform = `rotateY(-90deg) translateZ(${translateZ}px)`;
-            });
-            document.querySelectorAll('.face-5').forEach(face => {
-                face.style.transform = `rotateX(90deg) translateZ(${translateZ}px)`;
-            });
-            document.querySelectorAll('.face-6').forEach(face => {
-                face.style.transform = `rotateX(-90deg) translateZ(${translateZ}px)`;
+                dice.style.setProperty('--dice-size', size + 'px');
             });
         }
-        
-        // 更新滑块颜色背景
+
         function updateSlider(value) {
             const diceSizeSlider = document.getElementById('diceSize');
             const diceSizeFloating = document.getElementById('diceSizeFloating');
@@ -1574,7 +1586,6 @@
             floatingValue.textContent = diceSizeSlider.value + '%';
         }
 
-        // 新增:处理骰子大小滑块拖动时的透明度效果
         function handleDiceSizeDrag() {
             const diceSizeSlider = document.getElementById('diceSize');
             const diceSizeFloating = document.getElementById('diceSizeFloating');
@@ -1585,13 +1596,13 @@
             // 同步两个滑块的值
             diceSizeSlider.addEventListener('input', function() {
                 diceSizeFloating.value = this.value;
-                document.getElementById('diceSizeValue').textContent = this.value + '%';
+                document.getElementById('diceSizeValue').textContent = this.value;
                 updateSlider(diceSizeFloating.value);
             });
             
             diceSizeFloating.addEventListener('input', function() {
                 diceSizeSlider.value = this.value;
-                document.getElementById('diceSizeValue').textContent = this.value + '%';
+                document.getElementById('diceSizeValue').textContent = this.value;
                 updateDiceSize(this.value);
                 updateSlider(diceSizeFloating.value);
             });
@@ -1630,7 +1641,7 @@
             
             function hideFloatingSlider() {
                 diceSizeFloating.style.display = 'none';
-                floatingValue.style.display = 'none'; // 隐藏浮动数值
+                floatingValue.style.display = 'none';
             }
             
             document.addEventListener('mousemove', function(e) {
@@ -1644,9 +1655,8 @@
                 if (isDragging) {
                     isDragging = false;
                     hideFloatingSlider();
-                    // 修改:恢复容器透明度而不是移除类
+                    // 恢复容器透明度
                     menuContainer.style.opacity = '1';
-                    saveSettings();
                 }
             });
             
@@ -1661,9 +1671,8 @@
                 if (isDragging) {
                     isDragging = false;
                     hideFloatingSlider();
-                    // 修改:恢复容器透明度而不是移除类
+                    // 恢复容器透明度
                     menuContainer.style.opacity = '1';
-                    saveSettings();
                 }
             });
         }
