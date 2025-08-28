@@ -2,25 +2,37 @@
 <html lang="zh-CN">
 <head>
     <!-- 
-    3D骰子模拟器 - 主要功能：
+    3D骰子模拟器
+	- 主要功能：
     1. 模拟3D骰子投掷效果
     2. 支持多骰子投掷和连续投掷
     3. 记录投掷历史并可视化显示，抽屉显示，可展开与收回
     4. 音效与振动反馈
-    5. 响应式设计，支持移动设备晃动投掷
+    5. 响应式设计，支持移动设备"摇一摇"投掷
     6. 汉堡菜单收纳设置，可配置项：骰子数量、连续投掷次数、音效、震动、显示方式、晃动投掷开关和历史记录开关等等
-	7. 连续投掷可中断
-	8. 历史记录抽屉支持拖拽
-    9. 适配移动设备
-	10.持久化保存设置
-    11.添加全屏功能
-	12.骰子大小控制
-	13.音效缓存
-	14.UI与交互优化
-	15.架构优化
+	- 修改记录：
+	1. 连续投掷可中断
+	2. 历史记录抽屉支持拖拽
+    3. 适配移动设备
+	4.持久化保存设置
+    5.添加全屏功能
+	6.骰子大小控制
+	7.音效缓存
+	8.架构优化
+	9.iOS兼容
+	10.UI与交互优化
     -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 启用 WebApp 全屏模式 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- SVG for modern browsers -->
+    <link rel="icon" href="images/dice/icon.svg" type="image/svg+xml">
+	<!-- iOS Safari 会读取 Apple Touch Icon（会自动加圆角和高光）-->
+	<link rel="apple-touch-icon" sizes="180x180" href="images/dice/apple-touch-icon.png">
+
     <title>3D骰子模拟器</title>
     <style>
         body {
@@ -53,18 +65,23 @@
         .input-group {
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: space-between;
+	        width: 100%;
         }
         .controls input[type="number"] {
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            width: 60px;
+            width: 2em
+        }      
+        .number-wrapper {
+            display: flex;
+            align-items: center;
         }
-        
         .number-btn {
             width: 30px;
             padding: 2px;
+            margin: 0px 4px;
             font-size: 24px;
         }
         /* 修改switch样式 */
@@ -85,6 +102,8 @@
         .switch-wrapper {
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            width: 100%;
         }
         .switch input {
             opacity: 0;
@@ -119,12 +138,15 @@
         input:checked + .slider:before {
             transform: translateX(26px);
         }
-        .switch-label {
-            margin-left: 10px;
-            vertical-align: super;
+
+        #requestDeviceMotionPermission {
+            visibility:hidden;
+            margin: 0px;
+            font-size: small; 
         }
+
         .dice-container {
-            margin: 50px 10px 50px 10px;
+            margin: 30px 10px 50px 10px;
             padding-bottom: 150px;
             display: flex;
             flex-wrap: wrap;
@@ -235,19 +257,19 @@
             overflow: hidden;
             box-shadow: 0 -10px 30px rgba(0,0,0,0.15);
             z-index: 5;
-            transform: translateY(calc(100% - 60px));
+            transform: translateY(calc(100% - 60px)) translateZ(1005px) /* translateZ fix safari z-index */;
             will-change: transform;
         }
         #history.visible {
-            transform: translateY(0);
+            transform: translateY(0) translateZ(1005px);
         }
         #history.visible-more {
             height: 160px;
-            transform: translateY(0);
+            transform: translateY(0) translateZ(1005px);
         }
         #history.expanded {
             height: 60vh;
-            transform: translateY(0);
+            transform: translateY(0) translateZ(1005px);
         }
         /* 历史记录标题样式 */
         #history h2 {
@@ -287,7 +309,7 @@
             background-color: #f5f5f5;
         }
         #historyList {
-            padding: 8px 20px;
+            padding: 0px 20px 8px;
             max-height: calc(60vh - 70px);
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
@@ -297,9 +319,30 @@
             display: none;
         }
         .history-item {
-            padding: 12px 0;
+            padding: 6px 0;
             border-bottom: 1px solid rgba(0,0,0,0.05);
             animation: fadeIn 0.3s;
+        }
+        .history-info {
+            padding: 6px 0;
+            text-align: center;
+            font-size: small;
+            font-style: italic;
+            color: #888;
+        }
+        /* 新增历史记录插入动画 */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translate(0,-80%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(0,0);
+            }
+        }
+        .history-item.insert-animation {
+            animation: slideIn 0.4s ease-out;
         }
         /* 图标样式 */
         .history-icon {
@@ -340,6 +383,7 @@
             top: 10px;
             right: 10px;
             z-index: 10;
+          	-webkit-transform: translateZ(1010px);
             width: 30px;
             height: 20px;
             padding: 30px 30px 40px 40px;
@@ -363,6 +407,7 @@
             box-shadow: -2px 0 10px rgba(0,0,0,0.1);
             transition: right 0.3s;
             z-index: 9;
+            -webkit-transform: translateZ(1009px);
             padding: 20px;
             overflow-y: auto;
         }
@@ -385,6 +430,7 @@
             top: 10px;
             left: 10px;
             z-index: 10;
+            -webkit-transform: translateZ(1010px);
             padding: 10px;
             cursor: pointer;
             background: white;
@@ -423,6 +469,7 @@
             left: 0;
             width: 150px;
             z-index: 100;
+          	-webkit-transform: translateZ(1100px);
             opacity: 1 !important;
         }
         
@@ -431,14 +478,14 @@
             position: fixed;
             top: -25px;
             left: 0;
-            transform: translateX(-50%);
+          	z-index: 101;
+            transform: translateX(-50%) translateZ(1101px) /* translateZ fix safari z-index */;
             background: #4CAF50;
             color: white;
             padding: 2px 8px;
             border-radius: 4px;
             font-size: 12px;
             font-weight: bold;
-            z-index: 101;
             white-space: nowrap;
             display: none;
         }
@@ -516,21 +563,25 @@
         <div class="controls">
             <div class="control-row">
                 <div class="input-group">
-                    <label for="diceCount">骰子数量:</label>
-                    <button class="number-btn minus" onclick="adjustNumber('diceCount', -1)">-</button>
-                    <input type="number" id="diceCount" min="1" max="20" value="2">
-                    <button class="number-btn plus" onclick="adjustNumber('diceCount', 1)">+</button>
+                    <label for="diceCount">骰子数量</label>
+                    <div class="number-wrapper">
+                        <button class="number-btn minus" onclick="adjustNumber('diceCount', -1)">-</button>
+                        <input type="number" id="diceCount" min="1" max="20" value="2">
+                        <button class="number-btn plus" onclick="adjustNumber('diceCount', 1)">+</button>
+                    </div>
                 </div>
                 <div class="input-group">
-                    <label for="repeatCount">连续投掷:</label>
-                    <button class="number-btn minus" onclick="adjustNumber('repeatCount', -1)">-</button>
-                    <input type="number" id="repeatCount" min="1" max="20" value="1">
-                    <button class="number-btn plus" onclick="adjustNumber('repeatCount', 1)">+</button>
+                    <label for="repeatCount">连续投掷</label>
+                    <div class="number-wrapper">
+                        <button class="number-btn minus" onclick="adjustNumber('repeatCount', -1)">-</button>
+                        <input type="number" id="repeatCount" min="1" max="20" value="1">
+                        <button class="number-btn plus" onclick="adjustNumber('repeatCount', 1)">+</button>
+                    </div>
                 </div>
             </div>
             <div class="control-row">
                 <div class="input-group">
-                    <label for="diceSize">骰子大小:</label>
+                    <label for="diceSize">骰子大小</label>
                     <div class="dice-size-wrapper">
                         <input type="range" id="diceSize" min="50" max="300" value="200" style="width: 150px;">
                         <span id="diceSizeValue" contenteditable="true">200</span>%
@@ -561,7 +612,7 @@
                         </label>
                     </div>
                     <div class="switch-wrapper">
-                         <span class="switch-label">晃动触发</span>
+                         <span class="switch-label">摇一摇</span>
                         <label class="switch">
                             <input type="checkbox" id="shakeSwitch">
                             <span class="slider"></span>
@@ -595,6 +646,7 @@
     <div class="control-row" style="margin: 20px 0;">
         <button  id="rollButton" onclick="rollDice()">掷骰子</button>
     </div>
+	<p id="requestDeviceMotionPermission">需要授权才能启用“摇一摇”，<a href="#" onclick="requestDeviceMotionPermission()">点我授权</a></p>
     
     <div class="dice-container" id="diceContainer"></div>
     
@@ -919,7 +971,6 @@
             
             // 清空容器
             diceContainer.innerHTML = '';
-            totalElement.textContent = '0';
             
             let currentRepeat = 0;
             const repeatCount = parseInt(document.getElementById('repeatCount').value);
@@ -1021,7 +1072,7 @@
                                     results: results,
                                     total: total
                                 };
-                                historyRecords.unshift(record);
+                                historyRecords.push(record);
                                 updateHistoryDisplay();
                             }
                             
@@ -1245,23 +1296,35 @@
             historyCount.style.display = 'inline-block';
             historyRightGroup.style.display = 'inline-block';
             historyCount.textContent = `${historyRecords.length}次`;
-            
-            const recordsToShow = historyRecords.slice(0, 50);
+            const displayLimit = 100;
+            const recordsToShow = historyRecords.slice(-displayLimit); // 负值代表从数组尾部开始截取
             
             recordsToShow.forEach((record, index) => {
                 const recordElement = document.createElement('div');
                 recordElement.className = 'history-item';
+                // 添加插入动画类
+                if (index === recordsToShow.length - 1) {
+                    recordElement.classList.add('insert-animation');
+                }
+
+                const actualIndex = historyRecords.length - recordsToShow.length + index + 1;
                 recordElement.innerHTML = `
                     <div style="display:flex; justify-content:space-between">
-                        <strong>${index + 1}. ${record.time}</strong>
-                        <span>投掷结果：<span style="color:#4CAF50">${record.total}</span></span>
+                        <span><strong>${actualIndex}. 点数：<span style="color:#4CAF50">${record.total}</span></strong></span>
+                        <span style="color:#666">${record.time}</span>
                     </div>
                     <div style="font-size:0.9em; color:#666">
                         ${record.diceCount}个骰子: ${record.results.join(', ')}
                     </div>
                 `;
-                historyList.appendChild(recordElement);
+                historyList.insertBefore(recordElement, historyList.firstChild);
             });
+            if(historyRecords.length > displayLimit) {
+                const infoElement = document.createElement('div');
+                infoElement.className = 'history-info';
+                infoElement.textContent = `仅显示最近 ${displayLimit} 条记录，共 ${historyRecords.length} 条`;
+                historyList.appendChild(infoElement);
+            }
         }
 
         // 切换历史记录抽屉函数
@@ -1558,8 +1621,7 @@
                 return;
             }
             
-            // 如果点击的是掷骰子按钮，不处理
-            if (e.target.closest('button') ) {
+            if (e.target.closest('button') || e.target.closest('a')) {
                 return;
             }
             
@@ -1583,6 +1645,11 @@
             rollDice();
         }
         
+        function showRequestDeviceMotionPermission(isShow) {
+            const requestDeviceMotionPermission = document.getElementById('requestDeviceMotionPermission');
+            requestDeviceMotionPermission.style.visibility = isShow ? 'visible' : 'hidden';
+        }
+
         let lastAcceleration = { x: null, y: null, z: null };
         let lastShakeTime = 0;
         function handleDeviceMotion(event) {
@@ -1593,6 +1660,8 @@
 
             const acceleration = event.acceleration || event.accelerationIncludingGravity;
             if (!acceleration) return;
+
+            showRequestDeviceMotionPermission(false);
 
             // 第一次获取数据
             if (lastAcceleration.x === null) {
@@ -1673,6 +1742,11 @@
 
             if (shakeSwitch.checked) {
                 window.addEventListener('devicemotion', handleDeviceMotion);
+                setTimeout(() => {
+                    if (lastAcceleration.x === null && typeof DeviceMotionEvent.requestPermission === 'function') {
+                        showRequestDeviceMotionPermission(true);
+                    }
+                }, 500);
             }
             
             // 监听晃动开关变化
@@ -1690,6 +1764,7 @@
                     }
                 } else {
                     window.removeEventListener('devicemotion', handleDeviceMotion);
+                    showRequestDeviceMotionPermission(false);
                     saveSettings();
                 }
             });
