@@ -13,6 +13,7 @@
 	8. 历史记录抽屉支持拖拽
     9. 适配移动设备
 	10.持久化保存设置
+    11.添加全屏功能
     -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -362,10 +363,50 @@
         #history.no-transition {
             transition: none;
         }
+        
+        /* 新增全屏按钮样式 */
+        .fullscreen-btn {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            padding: 10px;
+            cursor: pointer;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .fullscreen-btn:hover {
+            background: #f0f0f0;
+            transform: scale(1.1);
+        }
+        .fullscreen-btn:active {
+            transform: scale(0.95);
+        }
+        .fullscreen-btn svg {
+            width: 40px;
+            height: 40px;
+            stroke: #4CAF50;
+            stroke-width: 2;
+            transition: all 0.3s ease;
+        }
     </style>
 
 <body onclick="handleBodyClick(event)">
-    <h1>3D骰子模拟器</h1>
+    <h1 id="mainTitle">3D骰子模拟器</h1>
+    
+    <!-- 修改全屏按钮 -->
+    <div class="fullscreen-btn" onclick="toggleFullScreen()">
+        <svg id="fullscreenIcon" viewBox="0 0 1024 1024" fill="#4CAF50" >
+            <path id="enterFullscreen" d="M358.4 768H426.666667v85.333333H213.333333v-213.333333h85.333334v68.266667l128-128 59.733333 59.733333-128 128z m345.6 0l-128-128 59.733333-59.733333 132.266667 132.266666V640h85.333333v213.333333h-213.333333v-85.333333h64zM358.4 298.666667l128 128-59.733333 59.733333-128-128V426.666667H213.333333V213.333333h213.333334v85.333334H358.4z m345.6 0H640V213.333333h213.333333v213.333334h-85.333333V354.133333l-132.266667 132.266667-59.733333-59.733333 128-128z"/>
+            <path id="exitFullscreen" d="M298.666667 631.466667H226.133333v-81.066667h217.6v204.8h-85.333333v-68.266667l-128 128L170.666667 759.466667l128-128z m422.4 0l128 128-59.733334 59.733333-128-128v68.266667h-85.333333V554.666667h217.6v81.066666h-72.533333zM298.666667 341.333333L187.733333 230.4 243.2 170.666667l115.2 115.2V217.6h85.333333v204.8H226.133333V341.333333H298.666667z m430.933333 0h64v81.066667h-217.6V217.6h85.333333v72.533333L780.8 170.666667l59.733333 59.733333L729.6 341.333333z" style="display:none;"/>
+        </svg>
+    </div>
+    
     <!-- 添加汉堡菜单按钮 -->
     <div class="menu-btn" onclick="toggleMenu()">
         <span></span>
@@ -872,9 +913,9 @@
                     debugLog("点击判断: "+e.target.id);
                     if (e.target.id === "clear-history") {
                         clearHistory(e);
-                        return;
+                    } else {
+                        toggleHistory(); // 触发点击事件
                     }
-                    toggleHistory(); // 触发点击事件
                 } else {
                     const maxHeight = containerHeight * 0.6;
                     const minHeight = containerHeight * 0.2;
@@ -1063,6 +1104,12 @@
             if (e.target.closest('.menu-btn') || e.target.closest('#menuContainer')) {
                 return;
             }
+
+            // 如果点击的是全屏按钮，不处理
+            if (e.target.closest('.fullscreen-btn') || e.target.closest('#fullscreenIcon')) {
+                return;
+            }
+            
             
             // 如果点击的是历史记录区域或历史记录图标，不处理
             if (e.target.closest('#history') || e.target.closest('.history-icon')) {
@@ -1130,6 +1177,56 @@
                 rollDice();
             }
         });
+        
+        // 全屏功能实现
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`无法进入全屏模式: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        // 处理全屏状态变化
+        function handleFullScreenChange() {
+            const enterIcon = document.getElementById('enterFullscreen');
+            const exitIcon = document.getElementById('exitFullscreen');
+            const mainTitle = document.getElementById('mainTitle');
+            
+            debugLog('handleFullScreenChange: '+document.fullscreenElement);
+            if (document.fullscreenElement) {
+                // 已进入全屏模式
+                enterIcon.style.display = 'none';
+                exitIcon.style.display = 'block';
+                mainTitle.style.display = 'none';
+            } else {
+                // 已退出全屏模式
+                enterIcon.style.display = 'block';
+                exitIcon.style.display = 'none';
+                mainTitle.style.display = 'block';
+            }
+        }
+
+        // 监听全屏状态变化
+        document.addEventListener('fullscreenchange', handleFullScreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullScreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullScreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullScreenChange);
+
+        // 添加键盘事件监听器，处理F11按键
+        document.addEventListener('keydown', function(event) {
+            // 检测是否按下了F11键
+            if (event.key === 'F11') {
+                // 注意：由于浏览器安全限制，我们无法阻止F11默认行为
+                // 但我们可以在下一个事件循环中检查全屏状态并更新图标
+                setTimeout(handleFullScreenChange, 100);
+            }
+        });
+
         // 初始化一个骰子
         window.onload = function() {
             debugLog("页面加载完成");
