@@ -15,6 +15,8 @@
 	10.持久化保存设置
     11.添加全屏功能
 	12.骰子大小控制
+	13.音效缓存
+	14.UI优化
     -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -48,6 +50,12 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             width: 60px;
+        }
+        
+        .number-btn {
+            width: 30px;
+            padding: 2px;
+            font-size: 24px;
         }
         .switch-container {
             display: flex;
@@ -128,17 +136,17 @@
             position: relative;
             transform-style: preserve-3d;
             transition: transform 1s ease;
+            font-size: 100px;
         }
         .face {
             position: absolute;
             width: 100%;
             height: 100%;
-            border: 2px solid #333;
-            border-radius: 10px;
+            border: 4px solid #333;
+            border-radius: 10%;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 24px;
             font-weight: bold;
             background-color: white;
         }
@@ -449,7 +457,7 @@
             background: #ccc;
             outline: none;
             /* 添加轨道划过效果 */
-            background: linear-gradient(to right, #4CAF50 0%, #4CAF50 0%, #ccc 0%, #ccc 100%);
+            background: linear-gradient(to right, #4CAF50 0%, #4CAF50 60%, #ccc 60%, #ccc 100%);
             background-size: 100% 100%;
             background-repeat: no-repeat;
         }
@@ -486,7 +494,7 @@
     </div>
     
     <!-- 添加汉堡菜单按钮 -->
-    <div class="menu-btn" onclick="toggleMenu()">
+    <div class="menu-btn" id="mainMenu" onclick="toggleMenu()">
         <span></span>
         <span></span>
         <span></span>
@@ -501,7 +509,7 @@
                 <div class="input-group">
                     <label for="diceCount">骰子数量:</label>
                     <button class="number-btn minus" onclick="adjustNumber('diceCount', -1)">-</button>
-                    <input type="number" id="diceCount" min="1" max="10" value="2">
+                    <input type="number" id="diceCount" min="1" max="20" value="2">
                     <button class="number-btn plus" onclick="adjustNumber('diceCount', 1)">+</button>
                 </div>
                 <div class="input-group">
@@ -558,7 +566,7 @@
                     <div class="switch-wrapper">
                          <span class="switch-label">记录历史</span>
                         <label class="switch">
-                            <input type="checkbox" id="historySwitch">
+                            <input type="checkbox" id="historySwitch" checked>
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -582,7 +590,7 @@
     
     <!-- 将掷骰子按钮移出菜单 -->
     <div class="control-row" style="margin: 20px 0;">
-        <button onclick="rollDice()">掷骰子</button>
+        <button  id="rollButton" onclick="rollDice()">掷骰子</button>
     </div>
     
     <div class="dice-container" id="diceContainer"></div>
@@ -657,10 +665,61 @@
         // 初始化变量
         let lastAcceleration = {x: null, y: null, z: null};
         const shakeThreshold = 15;
-        let needRefresh = false;
+ 
         // 新增历史记录数组
         let historyRecords = [];
-
+        
+        // 音效
+        const soundUrl = 'https://cdn.pixabay.com/download/audio/2023/03/14/audio_7763cd5c8a.mp3?filename=dice-142528.mp3';
+        let diceSound = null;
+        
+        // 音效缓存函数
+        function preloadSound() {
+            debugLog("preloadSound");
+            if (!diceSound) {
+                // 检查是否支持 CacheStorage
+                if ('caches' in window) {
+                    caches.open('dice-sounds').then(cache => {
+                        cache.match(soundUrl).then(response => {
+                            if (response) {
+                                // 音频文件已在缓存中
+                                debugLog("Sound loaded from cache");
+                                response.blob().then(blob => {
+                                    diceSound = new Audio(URL.createObjectURL(blob));
+                                });
+                            } else {
+                                // 音频文件不在缓存中，需要缓存
+                                debugLog("Sound not in cache, caching now");
+                                fetch(soundUrl).then(response => {
+                                    cache.put(soundUrl, response.clone());
+                                    response.blob().then(blob => {
+                                        debugLog("Sound cached");
+                                        diceSound = new Audio(URL.createObjectURL(blob));
+                                    });
+                                }).catch(err => {
+                                    debugLog("Failed to fetch and cache sound", err);
+                                    // 如果缓存失败，直接创建音频对象
+                                    diceSound = new Audio(soundUrl);
+                                });
+                            }
+                        }).catch(err => {
+                            debugLog("Cache match error", err);
+                            // 如果缓存检查失败，直接创建音频对象
+                            diceSound = new Audio(soundUrl);
+                        });
+                    }).catch(err => {
+                        debugLog("Failed to open cache", err);
+                        // 如果无法打开缓存，直接创建音频对象
+                        diceSound = new Audio(soundUrl);
+                    });
+                } else {
+                    // 浏览器不支持 CacheStorage，使用传统方式
+                    diceSound = new Audio(soundUrl);
+                    diceSound.load();
+                }
+            }
+        }
+        
         function createDice() {
             const dice = document.createElement('div');
             dice.className = 'dice';
@@ -669,12 +728,17 @@
             const diceSize = document.getElementById('diceSize').value || 200;
             dice.style.width = diceSize + 'px';
             dice.style.height = diceSize + 'px';
+            dice.style.margin = diceSize * 0.1 + 'px';
+            dice.style.fontSize = diceSize * 0.5 + 'px';
             
             const showNumbers = document.getElementById('showNumberSwitch').checked;
             
             for (let i = 1; i <= 6; i++) {
                 const face = document.createElement('div');
                 face.className = `face face-${i}`;
+
+                const borderWidth = Math.min(Math.max(2, diceSize * 0.02), 4);
+                face.style.borderWidth = borderWidth + 'px';
                 
                 if (showNumbers) {
                     face.textContent = i;
@@ -770,7 +834,7 @@
             });
             
             // 更新点的大小
-            const dotSize = Math.max(10, diceSize * 0.15);
+            const dotSize = Math.max(10, diceSize * 0.20);
             const dots = dice.querySelectorAll('.dot');
             dots.forEach(dot => {
                 dot.style.width = dotSize + 'px';
@@ -788,13 +852,12 @@
             debugLog("rollDice");
             const diceContainer = document.getElementById('diceContainer');
             const totalElement = document.getElementById('total');
-            const rollButton = document.querySelector('button[onclick="rollDice()"]');
             
             // 如果正在连续投掷，点击按钮则停止
             if (isContinuousRolling) {
                 clearTimeout(currentRollTimeout);
                 isContinuousRolling = false;
-                rollButton.textContent = document.getElementById('repeatCount').value > 1 ? '连续掷' : '掷骰子';
+                updateRollButtonText(isContinuousRolling);
                 return;
             }
             
@@ -806,11 +869,33 @@
             const repeatCount = parseInt(document.getElementById('repeatCount').value);
             
             if(repeatCount >1 ) {
-                // 更新按钮文字
-                rollButton.textContent = '停止';
                 isContinuousRolling = true;
+                updateRollButtonText(isContinuousRolling);
             }
-            
+
+            function mayPlaySound(){
+                const soundEnabled = document.getElementById('soundSwitch').checked;
+                if (soundEnabled) {
+                    if (diceSound) {
+                        debugLog("Using diceSound"); 
+                    } else {
+                        debugLog("Creating new sound");
+                        diceSound = new Audio(soundUrl);
+                    }
+                    debugLog("Playing sound");
+                    diceSound.play().catch(err => {
+                        debugLog("Sound play error", err);
+                    });
+                }
+            }
+
+            function mayVibrate(){                                
+                const vibrationEnabled = document.getElementById('vibrationSwitch').checked;
+                if (vibrationEnabled && 'vibrate' in navigator) {
+                    navigator.vibrate([100, 50, 100]);
+                }
+            }
+
             function performRoll() {
                 debugLog("进入performRoll函数，当前重复次数:", currentRepeat + 1);
                 const diceCount = parseInt(document.getElementById('diceCount').value);
@@ -820,13 +905,17 @@
                 rowContainer.style.display = 'flex';
                 rowContainer.style.flexWrap = 'wrap';
                 rowContainer.style.justifyContent = 'center';
-                rowContainer.style.gap = '20px';
+                //rowContainer.style.gap = '20px';
                 rowContainer.style.margin = "0 15px 30px 15px"
                 diceContainer.appendChild(rowContainer);
 
                 let total = 0;
                 const results = [];
-                
+                const rollDelay = 100;
+
+                mayPlaySound();
+                mayVibrate();
+
                 for (let i = 0; i < diceCount; i++) {
                     const dice = createDice();
                     const result = Math.floor(Math.random() * 6) + 1;
@@ -844,7 +933,6 @@
                     const initialXRot = rotations[result].x + Math.floor(Math.random() * 360) * randomMultiplier;
                     const initialYRot = rotations[result].y + Math.floor(Math.random() * 360) * randomMultiplier;
                     const initialZRot = Math.floor(Math.random() * 360) * randomMultiplier;
-                    
                     dice.style.transform = `rotateX(${initialXRot}deg) rotateY(${initialYRot}deg) rotateZ(${initialZRot}deg)`;
                     dice.style.transition = 'transform 1.5s cubic-bezier(0.2, 0.6, 0.1, 1)';
                     
@@ -852,18 +940,7 @@
                         const finalX = rotations[result].x;
                         const finalY = rotations[result].y;
                         dice.style.transform = `rotateX(${finalX}deg) rotateY(${finalY}deg)`;
-                        
-                        const soundEnabled = document.getElementById('soundSwitch').checked;
-                        if (soundEnabled) {
-                            const audio = new Audio('https://cdn.pixabay.com/download/audio/2023/03/14/audio_7763cd5c8a.mp3?filename=dice-142528.mp3');
-                            audio.play();
-                        }
-                        
-                        const vibrationEnabled = document.getElementById('vibrationSwitch').checked;
-                        if (vibrationEnabled && 'vibrate' in navigator) {
-                            navigator.vibrate([100, 50, 100]);
-                        }
-                    }, 1000);
+                    }, rollDelay);
                     
                     rowContainer.appendChild(dice);
                     results.push(result);
@@ -888,14 +965,13 @@
                             currentRepeat++;
                             
                             if (currentRepeat < repeatCount && isContinuousRolling) {
-                                currentRollTimeout = setTimeout(performRoll, 1500);
+                                currentRollTimeout = setTimeout(performRoll, 1000);
                             } else {
                                 // 连续投掷结束
                                 isContinuousRolling = false;
-                                const repeatCount = parseInt(document.getElementById('repeatCount').value);
-                                rollButton.textContent = repeatCount > 1 ? '连续掷' : '掷骰子';
+                                updateRollButtonText(isContinuousRolling);
                             }
-                        }, 2000);
+                        }, 1500);
                     }
                 }
             }
@@ -1108,6 +1184,16 @@
             }
         }
         
+        function updateRollButtonText(running) {
+            const rollButton = document.getElementById('rollButton');
+            if(running){
+                rollButton.textContent = '停止';
+            } else {
+                const repeatCount = parseInt(document.getElementById('repeatCount').value);
+                rollButton.textContent = repeatCount > 1 ? '连续掷' : '掷骰子';
+            }
+        }
+
         // 新增:重绘骰子时保留原骰子值
         function redrawDice() {
             const diceContainer = document.getElementById('diceContainer');
@@ -1205,7 +1291,13 @@
             
             input.value = value;
 
-            needRefresh=true;
+            redrawDice();
+                        
+            // 更新掷骰子按钮文字
+            if (!isContinuousRolling) {
+                updateRollButtonText(isContinuousRolling);
+            }
+
 			saveSettings();
         }
 
@@ -1216,20 +1308,6 @@
             const isClosing = menu.classList.contains('active');
             menu.classList.toggle('active');
             btn.classList.toggle('active');
-            
-            // 更新掷骰子按钮文字（仅在未连续投掷时）
-            if (!isContinuousRolling) {
-                const repeatCount = parseInt(document.getElementById('repeatCount').value);
-                const rollButton = document.querySelector('button[onclick="rollDice()"]');
-                rollButton.textContent = repeatCount > 1 ? '连续掷' : '掷骰子';
-            }
-            
-            // 如果是关闭菜单且设置发生了变化，则仅重绘骰子
-            if (isClosing && needRefresh) {
-                redrawDice();
-                needRefresh = false;
-            }
-            
         }
 
         // 新增:处理body点击事件
@@ -1336,18 +1414,26 @@
             const enterIcon = document.getElementById('enterFullscreen');
             const exitIcon = document.getElementById('exitFullscreen');
             const mainTitle = document.getElementById('mainTitle');
-            
+            const history = document.getElementById('history');
+            const rollButton = document.getElementById('rollButton');
+            const mainMenu = document.getElementById('mainMenu');
             debugLog('handleFullScreenChange: '+document.fullscreenElement);
             if (document.fullscreenElement) {
                 // 已进入全屏模式
                 enterIcon.style.display = 'none';
                 exitIcon.style.display = 'block';
                 mainTitle.style.display = 'none';
+                history.style.display = 'none';
+                rollButton.style.display = 'none';
+                mainMenu.style.display = 'none';
             } else {
                 // 已退出全屏模式
                 enterIcon.style.display = 'block';
                 exitIcon.style.display = 'none';
                 mainTitle.style.display = 'block';
+                history.style.display = 'block';
+                rollButton.style.display = 'block';
+                mainMenu.style.display = 'block';
             }
         }
 
@@ -1373,7 +1459,10 @@
             // 加载保存的设置
             loadSettings();
             
-            // 改为先创建骰子但不自动掷
+            // 预加载音效
+            preloadSound();
+            
+            // 创建骰子
             const diceContainer = document.getElementById('diceContainer');
             diceContainer.innerHTML = '';
             const showNumbers = document.getElementById('showNumberSwitch').checked;
@@ -1396,7 +1485,10 @@
             // 修改事件监听器，从controls移动到menuContainer
             document.getElementById('menuContainer').addEventListener('change', function(e) {
                 if(e.target.id === 'diceCount' || e.target.id === 'showNumberSwitch') {
-                    needRefresh = true;
+                    redrawDice();
+                }
+                if(e.target.id === 'repeatCount') {
+                    updateRollButtonText(isContinuousRolling);
                 }
                 // 保存设置
                 saveSettings();
@@ -1418,10 +1510,17 @@
             diceElements.forEach(dice => {
                 dice.style.width = size + 'px';
                 dice.style.height = size + 'px';
+                dice.style.margin = size * 0.1 + 'px';
+                dice.style.fontSize = size * 0.5 + 'px';
+                const facesElements = dice.querySelectorAll('.face');
+                facesElements.forEach(face => {
+                    const borderWidth = Math.min(Math.max(2, size * 0.02), 4);
+                    face.style.borderWidth = borderWidth + 'px';
+                });
             });
             
-            // 更新点的大小（基于骰子大小的15%）
-            const dotSize = Math.max(10, size * 0.15); // 最小10px
+            // 更新点的大小
+            const dotSize = Math.max(10, size * 0.20); // 最小10px
             dotElements.forEach(dot => {
                 dot.style.width = dotSize + 'px';
                 dot.style.height = dotSize + 'px';
