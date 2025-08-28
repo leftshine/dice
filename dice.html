@@ -10,6 +10,7 @@
     5. 响应式设计，支持移动设备晃动投掷
     6. 汉堡菜单收纳设置，可配置项：骰子数量、连续投掷次数、音效、震动、显示方式、晃动投掷开关和历史记录开关等等
 	7. 连续投掷可中断
+	8. 历史记录抽屉支持拖拽
     -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -222,12 +223,12 @@
         #history.visible {
             transform: translateY(0);
         }
-        #history.visible.has-multiple {
+        #history.visible-more {
             height: 160px;
             transform: translateY(0);
         }
         #history.expanded {
-            height: 60vh !important;
+            height: 60vh;
             transform: translateY(0);
         }
         /* 修改历史记录标题样式 */
@@ -358,6 +359,10 @@
         .history-icon.prompt {
             animation: bounce 1.5s infinite;
         }
+        /* 在现有CSS中添加过渡禁用样式 */
+        #history.no-transition {
+            transition: none;
+        }
     </style>
 
 <body onclick="handleBodyClick(event)">
@@ -446,10 +451,10 @@
     
     <!-- 修改历史记录区域 -->
     <div class="stats" id="history">
-        <h2 onclick="toggleHistory()">
+        <h2 id="historyHeader" >
             <span>投掷结果：<span id="total">0</span></span>
             
-            <svg class="history-icon" viewBox="0 0 24 24" onclick="toggleHistory(event)" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg class="history-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="2 14 12 18 22 14"></polyline>
             </svg>
             <span class="history-right-group">
@@ -690,7 +695,7 @@
             historyList.innerHTML = '';
             
             if(historyRecords.length === 0) {
-                historyContainer.classList.remove('visible', 'has-multiple','expanded');
+                historyContainer.classList.remove('visible', 'visible-more','expanded');
                 historyIcon.classList.remove('prompt');
                 historyIcon.style.display = 'none';
                 clearBtn.style.display = 'none';
@@ -702,9 +707,11 @@
             // 修改:只显示历史记录区域但不自动展开
             const history = document.getElementById('history');
             if(historyRecords.length > 1) {
-                history.classList.add('has-multiple');
+                history.classList.add('visible-more');
+                history.classList.remove('visible');
             }else{
                 history.classList.add('visible');
+                history.classList.remove('visible-more');
             }
 
             
@@ -736,14 +743,132 @@
 
         // 新增:切换历史记录抽屉函数
         function toggleHistory(e) {
+            if (e && e.type === 'click') {
+                // 仅当点击事件且非拖拽时触发
+                if (isDragging) return;
+            }
+            debugLog('toggleHistory');
             if(e) e.stopPropagation();
             const historyContainer = document.getElementById('history');
             const historyIcon = document.querySelector('.history-icon');
             
             if(historyRecords.length > 0) {
+                debugLog('toggleHistory: has history');
                 historyContainer.classList.toggle('expanded');
                 historyIcon.classList.toggle('up');
                 historyIcon.classList.remove('prompt');
+            }
+        }
+
+        // 新增: 初始化拖拽事件
+        let isDragging = false;
+
+        function initDragEvents() {
+            const historyHeader = document.getElementById('historyHeader');
+            const historyContainer = document.getElementById('history');
+            let startY, startHeight, containerHeight; // 新增变量声明
+
+            historyHeader.addEventListener('mousedown', startDrag);
+            historyHeader.addEventListener('touchstart', startDrag);
+
+            function startDrag(e) {
+                if (e.touches && e.touches.length > 1) return; // 忽略多点触控
+                // 无历史记录时直接返回
+                if (historyRecords.length === 0) return;
+                
+                isDragging = true;
+                startY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+                startHeight = historyContainer.offsetHeight;
+                containerHeight = window.innerHeight;
+                
+                historyContainer.classList.add('no-transition');
+                
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('touchmove', drag);
+                document.addEventListener('mouseup', endDrag);
+                document.addEventListener('touchend', endDrag);
+                
+                e.preventDefault();
+            }
+
+            function drag(e) {
+                if (!isDragging) return;
+                debugLog('drag');
+                
+                //historyContainer.classList.remove('expanded');
+                const currentY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+                const deltaY = currentY - startY;
+                const newHeight = startHeight - deltaY;
+                debugLog(`newHeight: ${newHeight}`);
+                // 计算最大最小高度
+                const maxHeight = containerHeight * 0.6;
+                const minHeight = containerHeight * 0.1;
+                debugLog(`newHeight: ${newHeight}, maxHeight: ${maxHeight}, minHeight: ${minHeight}`);
+                
+                // 设置限制并更新样式
+                if (newHeight >= minHeight && newHeight <= maxHeight) {
+                    historyContainer.style.height = `${newHeight}px`;
+                } else if (newHeight < minHeight) {
+                    historyContainer.style.height = `${minHeight}px`;
+                } else {
+                    historyContainer.style.height = `${maxHeight}px`;
+                }
+                
+                // 实时更新状态
+                updateHeightConstraints();
+                e.preventDefault();
+            }
+
+            function endDrag(e) {
+                if (!isDragging) return;
+                debugLog('endDrag');
+                const currentY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+                const deltaY = currentY - startY;
+       
+                // 新增: 点击判断逻辑
+                if (Math.abs(deltaY) < 5) {
+                    toggleHistory(); // 触发点击事件
+                } else {
+                    const maxHeight = containerHeight * 0.6;
+                    const minHeight = containerHeight * 0.2;
+                    let finalHeight;
+                    
+                    if (deltaY < -5) { // 向上拖拽
+                        finalHeight = Math.min(startHeight + Math.abs(deltaY), maxHeight);
+                    } else if (deltaY > 5) { // 向下拖拽
+                        finalHeight = Math.max(startHeight - Math.abs(deltaY), minHeight);
+                    }
+                    historyContainer.classList.toggle('expanded', finalHeight > containerHeight * 0.4);
+                    //const history = document.getElementById('history');
+                }
+                
+                historyContainer.style.height = '';
+                
+                // 恢复过渡效果
+                historyContainer.classList.remove('no-transition');
+                
+                // 移除事件监听
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('touchmove', drag);
+                document.removeEventListener('mouseup', endDrag);
+                document.removeEventListener('touchend', endDrag);
+                
+                //延时200ms避免触发body的click事件
+                setTimeout(() => { isDragging = false; }, 200);
+            }
+        }
+
+        // 新增: 根据高度更新状态
+        function updateHeightConstraints() {
+            const historyContainer = document.getElementById('history');
+            const historyIcon = document.querySelector('.history-icon');
+            const currentHeight = parseInt(historyContainer.style.height) || historyContainer.offsetHeight;
+            
+            // 更新图标状态
+            if (currentHeight > window.innerHeight * 0.4) {
+                historyIcon.classList.add('up');
+            } else {
+                historyIcon.classList.remove('up');
             }
         }
 
@@ -859,6 +984,12 @@
 
         // 新增:处理body点击事件
         function handleBodyClick(e) {
+            debugLog("body clicked");
+            // 如果正在拖拽，则直接返回
+            if (isDragging) {
+                isDragging = false; // 重置拖拽状态
+                return;
+            }
             // 如果点击的是菜单按钮或菜单容器内的元素，不处理
             if (e.target.closest('.menu-btn') || e.target.closest('#menuContainer')) {
                 return;
@@ -874,6 +1005,7 @@
                 return;
             }
             
+            debugLog("body clicked, need process");
             const menu = document.getElementById('menuContainer');
             const historyContainer = document.getElementById('history');
             
@@ -950,6 +1082,9 @@
                     needRefresh = true;
                 }
             });
+            
+            // 初始化拖拽事件
+            initDragEvents();
         };
     </script>
 </body>
