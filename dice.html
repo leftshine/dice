@@ -9,6 +9,7 @@
     4. 音效与振动反馈
     5. 响应式设计，支持移动设备晃动投掷
     6. 汉堡菜单收纳设置，可配置项：骰子数量、连续投掷次数、音效、震动、显示方式、晃动投掷开关和历史记录开关等等
+	7. 连续投掷可中断
     -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -555,11 +556,23 @@
             return dice;
         }
         
-        // 修改rollDice函数，添加连续投掷功能
+        // 修改rollDice函数，添加连续投掷停止功能
+        let currentRollTimeout = null;
+        let isContinuousRolling = false;
+
         function rollDice() {
             debugLog("rollDice");
             const diceContainer = document.getElementById('diceContainer');
             const totalElement = document.getElementById('total');
+            const rollButton = document.querySelector('button[onclick="rollDice()"]');
+            
+            // 如果正在连续投掷，点击按钮则停止
+            if (isContinuousRolling) {
+                clearTimeout(currentRollTimeout);
+                isContinuousRolling = false;
+                rollButton.textContent = document.getElementById('repeatCount').value > 1 ? '连续掷' : '掷骰子';
+                return;
+            }
             
             // 清空容器
             diceContainer.innerHTML = '';
@@ -568,17 +581,22 @@
             let currentRepeat = 0;
             const repeatCount = parseInt(document.getElementById('repeatCount').value);
             
+            if(repeatCount >1 ) {
+                // 更新按钮文字
+                rollButton.textContent = '停止';
+                isContinuousRolling = true;
+            }
+            
             function performRoll() {
                 debugLog("进入performRoll函数，当前重复次数:", currentRepeat + 1);
                 const diceCount = parseInt(document.getElementById('diceCount').value);
                 // 创建行容器
                 const rowContainer = document.createElement('div');
-                rowContainer.setAttribute('dice-row', '');
+                rowContainer.setAttribute('dice-row', ''); 
                 rowContainer.style.display = 'flex';
                 rowContainer.style.flexWrap = 'wrap';
                 rowContainer.style.justifyContent = 'center';
                 rowContainer.style.gap = '20px';
-                //rowContainer.style.marginBottom = '30px'; // 添加底部间距
                 rowContainer.style.margin = "0 15px 30px 15px"
                 diceContainer.appendChild(rowContainer);
 
@@ -623,12 +641,12 @@
                         }
                     }, 1000);
                     
-                    rowContainer.appendChild(dice);  // 将骰子添加到行容器
+                    rowContainer.appendChild(dice);
                     results.push(result);
                     total += result;
                     
                     if (i === diceCount - 1) {
-                        setTimeout(() => {
+                        currentRollTimeout = setTimeout(() => {
                             totalElement.textContent = total;
                             
                             const historyEnabled = document.getElementById('historySwitch').checked;
@@ -645,8 +663,13 @@
                             
                             currentRepeat++;
                             
-                            if (currentRepeat < repeatCount) {
-                                setTimeout(performRoll, 1500); // 1.5秒间隔
+                            if (currentRepeat < repeatCount && isContinuousRolling) {
+                                currentRollTimeout = setTimeout(performRoll, 1500);
+                            } else {
+                                // 连续投掷结束
+                                isContinuousRolling = false;
+                                const repeatCount = parseInt(document.getElementById('repeatCount').value);
+                                rollButton.textContent = repeatCount > 1 ? '连续掷' : '掷骰子';
                             }
                         }, 2000);
                     }
@@ -820,10 +843,12 @@
             menu.classList.toggle('active');
             btn.classList.toggle('active');
             
-            // 更新掷骰子按钮文字
-            const repeatCount = parseInt(document.getElementById('repeatCount').value);
-            const rollButton = document.querySelector('button[onclick="rollDice()"]');
-            rollButton.textContent = repeatCount > 1 ? '连续掷' : '掷骰子';
+            // 更新掷骰子按钮文字（仅在未连续投掷时）
+            if (!isContinuousRolling) {
+                const repeatCount = parseInt(document.getElementById('repeatCount').value);
+                const rollButton = document.querySelector('button[onclick="rollDice()"]');
+                rollButton.textContent = repeatCount > 1 ? '连续掷' : '掷骰子';
+            }
             
             // 如果是关闭菜单且设置发生了变化，则仅重绘骰子
             if (isClosing && needRefresh) {
