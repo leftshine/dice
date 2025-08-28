@@ -12,6 +12,7 @@
 	7. 连续投掷可中断
 	8. 历史记录抽屉支持拖拽
     9. 适配移动设备
+	10.持久化保存设置
     -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -476,6 +477,41 @@
             }
         }
         
+        // 保存设置到localStorage
+        function saveSettings() {
+            const settings = {
+                diceCount: document.getElementById('diceCount').value,
+                repeatCount: document.getElementById('repeatCount').value,
+                soundSwitch: document.getElementById('soundSwitch').checked,
+                vibrationSwitch: document.getElementById('vibrationSwitch').checked,
+                showNumberSwitch: document.getElementById('showNumberSwitch').checked,
+                shakeSwitch: document.getElementById('shakeSwitch').checked,
+                historySwitch: document.getElementById('historySwitch').checked,
+                debugSwitch: document.getElementById('debugSwitch')?.checked
+            };
+            localStorage.setItem('diceSettings', JSON.stringify(settings));
+            debugLog('Settings saved:', settings);
+        }
+        
+        // 从localStorage加载设置
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('diceSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                document.getElementById('diceCount').value = settings.diceCount || 2;
+                document.getElementById('repeatCount').value = settings.repeatCount || 1;
+                document.getElementById('soundSwitch').checked = settings.soundSwitch !== false; // 默认为true
+                document.getElementById('vibrationSwitch').checked = settings.vibrationSwitch !== false; // 默认为true
+                document.getElementById('showNumberSwitch').checked = settings.showNumberSwitch || false;
+                document.getElementById('shakeSwitch').checked = settings.shakeSwitch !== false; // 默认为true
+                document.getElementById('historySwitch').checked = settings.historySwitch !== false; // 默认为true
+                if (document.getElementById('debugSwitch') && settings.debugSwitch !== undefined) {
+                    document.getElementById('debugSwitch').checked = settings.debugSwitch;
+                }
+                debugLog('Settings loaded:', settings);
+            }
+        }
+        
         // 初始化变量
         let lastAcceleration = {x: null, y: null, z: null};
         const shakeThreshold = 15;
@@ -835,7 +871,8 @@
                 if (Math.abs(deltaY) < 5) {
                     debugLog("点击判断: "+e.target.id);
                     if (e.target.id === "clear-history") {
-                        clearHistory(e);  
+                        clearHistory(e);
+                        return;
                     }
                     toggleHistory(); // 触发点击事件
                 } else {
@@ -986,8 +1023,9 @@
             }
             
             input.value = value;
-            
+
             needRefresh=true;
+			saveSettings();
         }
 
         // 修改菜单切换函数
@@ -1010,6 +1048,7 @@
                 redrawDice();
                 needRefresh = false;
             }
+            
         }
 
         // 新增:处理body点击事件
@@ -1094,7 +1133,10 @@
         // 初始化一个骰子
         window.onload = function() {
             debugLog("页面加载完成");
-            // 改为先创建骰子但不自动掷骰
+            // 加载保存的设置
+            loadSettings();
+            
+            // 改为先创建骰子但不自动掷
             const diceContainer = document.getElementById('diceContainer');
             diceContainer.innerHTML = '';
             const showNumbers = document.getElementById('showNumberSwitch').checked;
@@ -1111,8 +1153,10 @@
                 if(e.target.id === 'diceCount' || e.target.id === 'showNumberSwitch') {
                     needRefresh = true;
                 }
+                // 保存设置
+                saveSettings();
             });
-
+            
             // 初始化拖拽事件
             initDragEvents();
         };
