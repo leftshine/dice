@@ -331,6 +331,9 @@ input[type="number"]
     -moz-appearance: textfield;    
 }
 
+.controls {
+    background: white;
+}
 .control-row {
     display: flex;
     flex-wrap: wrap;
@@ -490,4 +493,24 @@ input:checked + .slider {
 }
 input:checked + .slider:before {
     transform: translateX(26px);
+}
+
+.about-section {
+    position: sticky;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    text-align: end;
+    padding: 20px 0;
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+    z-index: -1;
+}
+@media (min-height: 667px) {
+    .about-section {
+        position: absolute;
+        bottom: 40px;
+        padding: 20px;
+    }
 }
