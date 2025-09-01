@@ -14,7 +14,6 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml">
 	<!-- iOS Safari 会读取 Apple Touch Icon（会自动加圆角和高光）-->
 	<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-    <link rel="stylesheet" href="styles.min.css">
 </head>
 <body onclick="handleBodyClick(event)">
     <h1 id="mainTitle">3D骰子模拟器</h1>
@@ -131,7 +130,22 @@
         </h2>
         <div id="historyList"></div>
     </div>
-<!-- <script src="script.js" defer></script> -->
-<script src="script.min.js" defer></script>
+<script>
+    // 动态加载CSS和JS文件
+    document.addEventListener('DOMContentLoaded', function() {
+        const debugSwitch = document.getElementById('debugSwitch');
+        const isDebug = debugSwitch && debugSwitch.checked;
+
+        const cssLink = document.createElement('link');
+        cssLink.rel = 'stylesheet';
+        cssLink.href = isDebug ? 'styles.css' : 'styles.min.css';
+        document.head.appendChild(cssLink);
+
+        const script = document.createElement('script');
+        script.src = isDebug ? 'script.js' : 'script.min.js';
+        script.defer = true;
+        document.body.appendChild(script);
+    });
+</script>
 </body>
 </html>
