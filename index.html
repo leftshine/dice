@@ -138,7 +138,7 @@
     // 动态加载CSS和JS文件
     document.addEventListener('DOMContentLoaded', function() {
         const debugSwitch = document.getElementById('debugSwitch');
-        const isDebug = debugSwitch && debugSwitch.checked || true;
+        const isDebug = debugSwitch && debugSwitch.checked;
 
         const cssLink = document.createElement('link');
         cssLink.rel = 'stylesheet';

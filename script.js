@@ -568,6 +568,9 @@ function initSettingsControl() {
         }
         if(e.target.id === 'debugSwitch') {
             debugSwitchWrapper.style.display = this.checked ? 'flex' : 'none';
+            if(!this.checked){
+                removeAccelerationOverlay();
+            }
         }
         saveSettings();
     });
@@ -945,6 +948,9 @@ let lastAcceleration = { x: null, y: null, z: null };
 let lastShakeTime = 0;
 let shakeThreshold = 12; // 默认阈值
 
+// 添加加速度历史记录数组
+let accelerationHistory = [];
+
 function handleDeviceMotion(event) {
     const shakeCooldown = 1000; // 1 秒冷却
     const shakeEnabled = document.getElementById('shakeSwitch').checked;
@@ -969,9 +975,25 @@ function handleDeviceMotion(event) {
     const deltaX = Math.abs(acceleration.x - lastAcceleration.x);
     const deltaY = Math.abs(acceleration.y - lastAcceleration.y);
     const deltaZ = Math.abs(acceleration.z - lastAcceleration.z);
-    
-    if (deltaX > 5 || deltaY > 5 || deltaZ > 5) {
+
+    if (deltaX > 2 || deltaY > 2 || deltaZ > 2) {
         debugLog(`加速度变化: x=${deltaX}, y=${deltaY}, z=${deltaZ}`); 
+            // 调试模式下记录加速度变化历史
+        const debugEnabled = document.getElementById('debugSwitch')?.checked || false;
+        if (debugEnabled) {
+            const accelData = {
+                time: Date.now(),
+                x: deltaX ? deltaX.toFixed(2) : 'N/A',
+                y: deltaY ? deltaY.toFixed(2) : 'N/A',
+                z: deltaZ ? deltaZ.toFixed(2) : 'N/A'
+            };
+            accelerationHistory.push(accelData);
+            if (accelerationHistory.length > 100) {
+                accelerationHistory.shift();
+            }
+
+            updateAccelerationDisplay();
+        }
     }
 
     // 更新上一次的加速度
@@ -1052,7 +1074,7 @@ function initShakeFeature() {
 
         if (shakeSwitchClickCount >= 5) {
             shakeSwitchClickCount = 0;
-            const newThreshold = prompt('请输入摇一摇灵敏度阈值 (默认为12):', shakeThreshold);
+            const newThreshold = prompt('摇一摇灵敏度 (默认为12):', shakeThreshold);
             if (newThreshold !== null && !isNaN(newThreshold) && newThreshold > 0) {
                 shakeThreshold = parseInt(newThreshold);
                 debugLog(`新的摇一摇阈值设置为: ${shakeThreshold}`);
@@ -1127,6 +1149,88 @@ function initDebugFeature() {
     if (about) {
         about.addEventListener('click', handleAboutClick);
     }
+}
+
+// 创建加速度显示覆盖层
+function createAccelerationOverlay() {
+    debugLog('创建加速度显示覆盖层');
+    const overlay = document.createElement('div');
+    overlay.id = 'accelerationOverlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        width: 300px;
+        max-height: 200px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        font-family: monospace;
+        font-size: 12px;
+        z-index: 1000;
+        overflow-y: auto;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    `;
+
+    const title = document.createElement('div');
+    title.id = "AccelerationOverlayTitle";
+    title.innerHTML = '<strong>加速度数据 (灵敏度：'+shakeThreshold+')</strong>';
+    title.style.marginBottom = '5px';
+    overlay.appendChild(title);
+
+    const content = document.createElement('div');
+    content.id = 'accelerationContent';
+    content.style.cssText = 'white-space: pre;';
+    overlay.appendChild(content);
+
+    document.body.appendChild(overlay);
+}
+
+// 移除加速度显示覆盖层
+function removeAccelerationOverlay() {
+    const overlay = document.getElementById('accelerationOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+    // 清空历史记录
+    accelerationHistory = [];
+}
+
+// 更新加速度数据显示
+function updateAccelerationDisplay() {
+    debugLog('updateAccelerationDisplay');
+    if (!document.getElementById('accelerationOverlay')) {
+        createAccelerationOverlay();
+    }
+    document.getElementById('AccelerationOverlayTitle').innerHTML = '<strong>加速度数据 (灵敏度：'+shakeThreshold+')</strong>';
+    const content = document.getElementById('accelerationContent');
+    if (!content) return;
+
+    if (accelerationHistory.length === 0) {
+        content.textContent = '等待数据...';
+        return;
+    }
+
+    // 显示最近的记录（倒序显示最新的在前面）
+    const displayData = accelerationHistory.slice(-20).reverse();
+    let text = '';
+    displayData.forEach(data => {
+        const timestamp = new Date(data.time).toLocaleTimeString();
+        // 检查是否有任何轴的加速度超过阈值
+        const xOverThreshold = Math.abs(parseFloat(data.x)) > shakeThreshold;
+        const yOverThreshold = Math.abs(parseFloat(data.y)) > shakeThreshold;
+        const zOverThreshold = Math.abs(parseFloat(data.z)) > shakeThreshold;
+
+        // 为超过阈值的数据添加红色标记
+        const xDisplay = xOverThreshold ? `<span style="color: red;">${data.x.toString().padStart(6, ' ')}</span>` : `<span>${data.x.toString().padStart(6, ' ')}</span>`;
+        const yDisplay = yOverThreshold ? `<span style="color: red;">${data.y.toString().padStart(6, ' ')}</span>` : `<span>${data.y.toString().padStart(6, ' ')}</span>`;
+        const zDisplay = zOverThreshold ? `<span style="color: red;">${data.z.toString().padStart(6, ' ')}</span>` : `<span>${data.z.toString().padStart(6, ' ')}</span>`;
+
+        text += `${timestamp} X:${xDisplay} Y:${yDisplay} Z:${zDisplay}\n`;
+    });
+
+    content.innerHTML = text;
 }
 
 window.onload = function() {
