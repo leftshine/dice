@@ -466,6 +466,11 @@ input[type="range"]::-moz-range-thumb {
     width: 0;
     height: 0;
 }
+
+#debugSwitchWrapper {
+    display: none;
+}
+
 .slider {
     position: absolute;
     cursor: pointer;
@@ -507,10 +512,14 @@ input:checked + .slider:before {
     font-size: 14px;
     z-index: -1;
 }
-@media (min-height: 667px) {
+@media (min-height: 700px) {
     .about-section {
         position: absolute;
         bottom: 40px;
         padding: 20px;
     }
+}
+
+#about {
+    cursor: pointer;
 }

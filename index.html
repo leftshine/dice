@@ -102,7 +102,7 @@
                         </label>
                     </div>
                     <!-- debug开关 -->
-                    <div class="switch-wrapper" style="display:none;">
+                    <div class="switch-wrapper" id="debugSwitchWrapper">
                         <span class="switch-label">调试模式</span>
                         <label class="switch">
                             <input type="checkbox" id="debugSwitch">
@@ -113,8 +113,8 @@
             </div>
         </div>
         <div class="about-section">
-            <p>写麻蒋老是没子骰†，干脆己自打一個</p>
-            <a href="mailto:leftshine@foxmail.com">leftshine@foxmail.com</a>
+            <p id="about" title="连续点击5次进入调试模式">写麻蒋老是没子骰†，干脆己自打一個</p>
+            <a title="发送邮件" href="mailto:leftshine@foxmail.com">leftshine@foxmail.com</a>
         </div>
     </div>
     
@@ -138,7 +138,7 @@
     // 动态加载CSS和JS文件
     document.addEventListener('DOMContentLoaded', function() {
         const debugSwitch = document.getElementById('debugSwitch');
-        const isDebug = debugSwitch && debugSwitch.checked;
+        const isDebug = debugSwitch && debugSwitch.checked || true;
 
         const cssLink = document.createElement('link');
         cssLink.rel = 'stylesheet';

@@ -34,6 +34,7 @@ function loadSettings() {
         document.getElementById('historySwitch').checked = settings.historySwitch !== false; // 默认为true
         if (document.getElementById('debugSwitch') && settings.debugSwitch !== undefined) {
             document.getElementById('debugSwitch').checked = settings.debugSwitch;
+            document.getElementById('debugSwitchWrapper').style.display = settings.debugSwitch ? 'flex' : 'none';
         }
 
         const diceSize = settings.diceSize || 200;
@@ -559,6 +560,9 @@ function initSettingsControl() {
             // handle in initShakeFeature
             return
         }
+        if(e.target.id === 'debugSwitch') {
+            debugSwitchWrapper.style.display = this.checked ? 'flex' : 'none';
+        }
         saveSettings();
     });
 }
@@ -1045,6 +1049,42 @@ function initShakeFeature() {
     });
 }
 
+function initDebugFeature() {
+    // about区域点击事件监听器
+    const about = document.getElementById('about');
+    const debugSwitch = document.getElementById('debugSwitch');
+    let aboutClickCount = 0;
+
+    function enableDebugMode(enable) {
+        const debugSwitchWrapper = document.getElementById('debugSwitchWrapper');
+        if (!debugSwitchWrapper || !debugSwitch) return;
+
+        debugSwitchWrapper.style.display = enable ? 'flex' : 'none';
+        debugSwitch.checked = enable;
+        saveSettings();
+    }
+
+    function handleAboutClick() {
+        if (debugSwitch.checked) return;
+        aboutClickCount++;
+        debugLog(`aboutClickCount: ${aboutClickCount}`);
+        if (aboutClickCount >= 5) {
+            const confirmEnable = confirm('是否开启调试模式？');
+            if (confirmEnable) {
+                enableDebugMode(true);
+            }
+            aboutClickCount = 0;
+        }
+        setTimeout(() => {
+            aboutClickCount = 0;
+        }, 5000);
+    }
+
+    if (about) {
+        about.addEventListener('click', handleAboutClick);
+    }
+}
+
 window.onload = function() {
     debugLog("页面加载完成");
     loadSettings();
@@ -1059,4 +1099,5 @@ window.onload = function() {
     initDiceSizeControl();
     initSettingsControl();
     initHistoryDragFeature();
+    initDebugFeature();
 };
