@@ -15,7 +15,8 @@ function saveSettings() {
         shakeSwitch: document.getElementById('shakeSwitch').checked,
         historySwitch: document.getElementById('historySwitch').checked,
         debugSwitch: document.getElementById('debugSwitch')?.checked,
-        diceSize: document.getElementById('diceSize').value
+        diceSize: document.getElementById('diceSize').value,
+        shakeThreshold: shakeThreshold
     };
     localStorage.setItem('diceSettings', JSON.stringify(settings));
     debugLog('Settings saved:', settings);
@@ -42,6 +43,11 @@ function loadSettings() {
         document.getElementById('diceSizeValue').textContent = diceSize;
         updateSlider(diceSize);
         updateDiceSize(diceSize);
+
+        if (settings.shakeThreshold !== undefined) {
+            shakeThreshold = settings.shakeThreshold;
+        }
+
         debugLog('Settings loaded:', settings);
     }
 }
@@ -937,8 +943,9 @@ function showRequestDeviceMotionPermission(isShow) {
 
 let lastAcceleration = { x: null, y: null, z: null };
 let lastShakeTime = 0;
+let shakeThreshold = 12; // 默认阈值
+
 function handleDeviceMotion(event) {
-    const shakeThreshold = 12; // 阈值
     const shakeCooldown = 1000; // 1 秒冷却
     const shakeEnabled = document.getElementById('shakeSwitch').checked;
     if (!shakeEnabled) return;
@@ -1015,12 +1022,44 @@ function initShakeFeature() {
     const shakeSwitch = document.getElementById('shakeSwitch');
     const shakeSwitchWrapper = shakeSwitch.closest('.switch-wrapper');
 
+    // 添加点击计数器
+    let shakeSwitchClickCount = 0;
+    let clickTimer = null;
+
     if (!isDeviceMotionSupported()) {
         debugLog('Device motion not supported');
         shakeSwitchWrapper.style.display = 'none';
         shakeSwitch.checked = false;
         return;
     }
+
+    // 添加点击事件监听器
+    shakeSwitchWrapper.addEventListener('click', function(e) {
+        if (e.target === shakeSwitch || e.target === shakeSwitch.nextElementSibling) {
+            // 点击的是开关本身或者紧随其后的元素，不计数
+            return;
+        }
+
+        shakeSwitchClickCount++;
+        debugLog('shakeSwitchClickCount: ' + shakeSwitchClickCount);
+        if (clickTimer) {
+            clearTimeout(clickTimer);
+        }
+
+        clickTimer = setTimeout(() => {
+            shakeSwitchClickCount = 0;
+        }, 1000);
+
+        if (shakeSwitchClickCount >= 5) {
+            shakeSwitchClickCount = 0;
+            const newThreshold = prompt('请输入摇一摇灵敏度阈值 (默认为12):', shakeThreshold);
+            if (newThreshold !== null && !isNaN(newThreshold) && newThreshold > 0) {
+                shakeThreshold = parseInt(newThreshold);
+                debugLog(`新的摇一摇阈值设置为: ${shakeThreshold}`);
+                saveSettings();
+            }
+        }
+    });
 
     if (shakeSwitch.checked) {
         window.addEventListener('devicemotion', handleDeviceMotion);
@@ -1054,7 +1093,7 @@ function initDebugFeature() {
     const about = document.getElementById('about');
     const debugSwitch = document.getElementById('debugSwitch');
     let aboutClickCount = 0;
-
+    let clickTimer = null;
     function enableDebugMode(enable) {
         const debugSwitchWrapper = document.getElementById('debugSwitchWrapper');
         if (!debugSwitchWrapper || !debugSwitch) return;
@@ -1066,18 +1105,23 @@ function initDebugFeature() {
 
     function handleAboutClick() {
         if (debugSwitch.checked) return;
+
         aboutClickCount++;
         debugLog(`aboutClickCount: ${aboutClickCount}`);
+
+        if (clickTimer) {
+            clearTimeout(clickTimer);
+        }
+        clickTimer = setTimeout(() => {
+            aboutClickCount = 0;
+        }, 1000);
         if (aboutClickCount >= 5) {
+            aboutClickCount = 0;
             const confirmEnable = confirm('是否开启调试模式？');
             if (confirmEnable) {
                 enableDebugMode(true);
             }
-            aboutClickCount = 0;
         }
-        setTimeout(() => {
-            aboutClickCount = 0;
-        }, 5000);
     }
 
     if (about) {
