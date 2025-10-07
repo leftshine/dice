@@ -946,7 +946,7 @@ function showRequestDeviceMotionPermission(isShow) {
 
 let lastAcceleration = { x: null, y: null, z: null };
 let lastShakeTime = 0;
-let shakeThreshold = 12; // 默认阈值
+let shakeThreshold = 5; // 默认阈值
 
 // 添加加速度历史记录数组
 let accelerationHistory = [];
@@ -1074,7 +1074,7 @@ function initShakeFeature() {
 
         if (shakeSwitchClickCount >= 5) {
             shakeSwitchClickCount = 0;
-            const newThreshold = prompt('摇一摇灵敏度 (默认为12):', shakeThreshold);
+            const newThreshold = prompt('摇一摇灵敏度 (默认为5):', shakeThreshold);
             if (newThreshold !== null && !isNaN(newThreshold) && newThreshold > 0) {
                 shakeThreshold = parseInt(newThreshold);
                 debugLog(`新的摇一摇阈值设置为: ${shakeThreshold}`);
