@@ -1,4 +1,5 @@
 # 3D骰子模拟器
+### [https://dice.leftshine.cn/](https://dice.leftshine.cn/)
 ## 主要功能：
 1. 模拟3D骰子投掷效果
 2. 支持多骰子投掷和连续投掷
